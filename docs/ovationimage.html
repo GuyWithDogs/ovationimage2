@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <script src="/dist/ffmpeg.dev.js"></script>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Upload an image to transcode to AVI for Ovation and play!</h3>
+    <!-- <video id="output-video" controls></video><br/> -->
+    <input type="file" id="uploader">
+    <button onClick="cancel()">Cancel</button>
+    <p id="message"></p>
+	  <br/>
+	  <p id="dlfile"><a id="dllink" href=""></a></p>
+    <script>
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      let ffmpeg = null;
+
+      const transcode = async ({ target: { files } }) => {
+        if (ffmpeg === null) {
+          ffmpeg = createFFmpeg({ log: true });
+        }
+        const message = document.getElementById('message');
+        const dllink = document.getElementById('dllink');
+        const { name } = files[0];
+        message.innerHTML = 'Loading ffmpeg-core.js';
+        if (!ffmpeg.isLoaded()) {
+          await ffmpeg.load();
+        }
+        ffmpeg.FS('writeFile', name, await fetchFile(files[0]));
+        message.innerHTML = 'Start transcoding';
+        await ffmpeg.run('-f', 'image2', '-loop', '1', '-t', '10', '-i', name, '-s', '640x480', '-aspect', '4:3', '-c:v', 'mpeg4', '-vf', 'fps=3', '-vtag', 'XVID', '-an', 'output.avi');
+        message.innerHTML = 'Complete transcoding';
+        const data = ffmpeg.FS('readFile', 'output.avi');
+
+		videoFile = URL.createObjectURL(new Blob([data.buffer], { type: 'video/x-msvideo' }));
+    
+    const outputName = name + '.avi';
+		dllink.href = videoFile;
+    dllink.setAttribute("download", outputName); 
+		dllink.innerHTML = outputName;
+
+        //const video = document.getElementById('output-video');
+        //video.src = videoFile;  // URL.createObjectURL(new Blob([data.buffer], { type: 'video/x-msvideo' }));
+        dllink.click();
+      }
+      const elm = document.getElementById('uploader');
+      elm.addEventListener('change', transcode);
+
+      const cancel = () => {
+        try {
+          ffmpeg.exit();
+        } catch(e) {}
+        ffmpeg = null;
+      }
+    </script>
+  </body>
+</html>
